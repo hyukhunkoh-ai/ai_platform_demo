@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <title>Excel</title>
+
+
+
+  </script>  <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"
+    integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous">
+  </script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
+    integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous">
+  </script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.18.0/axios.js"></script>
+
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+    <script>
+
+    var csrftoken = $('meta[name=csrf-token]').attr('content')
+
+    $.ajaxSetup({
+        beforeSend: function(xhr, settings) {
+          if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+            xhr.setRequestHeader("X-CSRFToken", csrftoken)
+          }
+        }
+    })
+  </script>
+
+    <script>
+      var root_path = $(location).attr('protocol') + "//" + $(location).attr('host');
+      function row_add(){
+            var num_columns = "";
+
+            cell_contents = document.getElementById('cell_contents');
+            head_contents = document.getElementById('row_cols');
+            var num = head_contents.childElementCount;
+
+
+            for(var i=0; i<num; i++) {
+                num_columns += '<td contenteditable="true"></td>';
+            }
+            cell_contents.innerHTML += '<tr class="rows">' + num_columns + '</tr>';
+
+      }
+      function col_add(){
+            head_contents = document.getElementById('row_cols');
+            head_contents.innerHTML += '<th align="center"></th>';
+            $(".rows").append('<td contenteditable="true"></td>');
+      }
+      function row_del(){
+            d = $(".rows:last-child");
+            d.remove();
+
+      }
+      function col_del(){
+            head_contents = document.getElementById('row_cols');
+            head_contents.removeChild(head_contents.lastElementChild);
+            d = $(".rows td:last-child");
+            d.remove();
+
+      }
+      function save_to_redis(){
+
+          name = document.getElementById("load_name").value.trim()
+          html_contents = $('#excel_container').html();
+          type = 'redis';
+
+          // alert(html_contents);
+
+          $.ajax
+          ({
+                  url: "/save_new_excel",
+                  type: "POST",
+                  data: JSON.stringify({'html': html_contents,'name':name,'type':type,}),
+                  contentType: "application/json",
+
+                  success : function(result)
+                  {
+
+                       window.location = '/api'
+                  },
+                  error: function(request, status, error)
+                  {
+                        alert(error);
+
+                  }
+          });
+
+      }
+
+      function save_to_csv(){
+
+          name = document.getElementById("load_name").value.trim()
+          html_contents = $('#excel_container').html();
+          type = 'csv';
+          // alert(html_contents);
+
+          $.ajax
+          ({
+                  url: "/save_new_excel",
+                  type: "POST",
+                  data: JSON.stringify({'html': html_contents,'name':name,'type':type,}),
+                  contentType: "application/json",
+
+                  success : function(result)
+                  {
+
+                       window.location = '/api'
+                  },
+                  error: function(request, status, error)
+                  {
+                        alert(error);
+
+                  }
+          });
+
+      }
+
+      function out(){
+          name = document.getElementById("load_name").innerHTML;
+          if (confirm('저장하지 않고 나가시겠습니까?')){
+                    $.ajax
+                    ({
+                          url: "/out_excel",
+                          type: "POST",
+                          data: JSON.stringify({'name': name}),
+                          contentType: "application/json",
+
+                          success : function(result)
+                          {
+                              window.location = '/api'
+                          },
+                          error: function(request, status, error)
+                          {
+                                alert(error);
+
+                          }
+                    });
+
+
+          }
+      }
+
+
+    </script>
+
+</head>
+<body >
+<div style="margin:20px;" ><input id="load_name" value="NEW"/></div>
+<div id="filter_line" style="margin:20px;">
+<!--  <input id="load_count" placeholder="nums" style="width:2%"/>-->
+<!--  <button type="button" class="btn btn-info" onclick="load_partial_first()">불러오기</button>-->
+
+<!--  <input placeholder="start_index"/>-->
+<!--  <input placeholder="end_index"/>-->
+</div>
+<div id="excel_container" style="margin:20px;">
+    <table width="100%" cellpadding="1" cellspacing="1" border="1" style="table-layout: fixed">
+        <thead id="cell_heads" contenteditable="true">
+            <tr style="text-align: center;" id="row_cols">
+                <th align="center" width="30px"> idx </th>
+                <th align="center">col1</th>
+                <th align="center">col2</th>
+                <th align="center">col3</th>
+                <th align="center">col4</th>
+                <th align="center">col5</th>
+            </tr>
+        </thead>
+        <tbody id="cell_contents" contenteditable="true">
+              <tr id="r1" class="rows"><td id="c1" contenteditable="true" class="column">0</td>
+              <td id="c2" contenteditable="true" class="column"></td>
+              <td id="c3" contenteditable="true" class="column"></td>
+              <td id="c4" contenteditable="true" class="column"></td>
+              <td id="c5" contenteditable="true" class="column"></td>
+              <td id="c6" contenteditable="true" class="column"></td></tr>
+              <tr id="r2" class="rows"><td id="c1" contenteditable="true" class="column">1</td>
+              <td id="c2" contenteditable="true" class="column"></td>
+              <td id="c3" contenteditable="true" class="column"></td>
+              <td id="c4" contenteditable="true" class="column"></td>
+              <td id="c5" contenteditable="true" class="column"></td>
+              <td id="c6" contenteditable="true" class="column"></td></tr>
+              <tr id="r3" class="rows"><td id="c1" contenteditable="true" class="column">2</td>
+              <td id="c2" contenteditable="true" class="column"></td>
+              <td id="c3" contenteditable="true" class="column"></td>
+              <td id="c4" contenteditable="true" class="column"></td>
+              <td id="c5" contenteditable="true" class="column"></td>
+              <td id="c6" contenteditable="true" class="column"></td></tr>
+              <tr id="r4" class="rows"><td id="c1" contenteditable="true" class="column">3</td>
+              <td id="c2" contenteditable="true" class="column"></td>
+              <td id="c3" contenteditable="true" class="column"></td>
+              <td id="c4" contenteditable="true" class="column"></td>
+              <td id="c5" contenteditable="true" class="column"></td>
+              <td id="c6" contenteditable="true" class="column"></td></tr>
+              <tr id="r5" class="rows"><td id="c1" contenteditable="true" class="column">4</td>
+              <td id="c2" contenteditable="true" class="column"></td>
+              <td id="c3" contenteditable="true" class="column"></td>
+              <td id="c4" contenteditable="true" class="column"></td>
+              <td id="c5" contenteditable="true" class="column"></td>
+              <td id="c6" contenteditable="true" class="column"></td></tr>
+              <tr id="r6" class="rows"><td id="c1" contenteditable="true" class="column">5</td>
+              <td id="c2" contenteditable="true" class="column"></td>
+              <td id="c3" contenteditable="true" class="column"></td>
+              <td id="c4" contenteditable="true" class="column"></td>
+              <td id="c5" contenteditable="true" class="column"></td>
+              <td id="c6" contenteditable="true" class="column"></td></tr>
+              <tr id="r7" class="rows"><td id="c1" contenteditable="true" class="column">6</td>
+              <td id="c2" contenteditable="true" class="column"></td>
+              <td id="c3" contenteditable="true" class="column"></td>
+              <td id="c4" contenteditable="true" class="column"></td>
+              <td id="c5" contenteditable="true" class="column"></td>
+              <td id="c6" contenteditable="true" class="column"></td></tr>
+              <tr id="r8" class="rows"><td id="c1" contenteditable="true" class="column">7</td>
+              <td id="c2" contenteditable="true" class="column"></td>
+              <td id="c3" contenteditable="true" class="column"></td>
+              <td id="c4" contenteditable="true" class="column"></td>
+              <td id="c5" contenteditable="true" class="column"></td>
+              <td id="c6" contenteditable="true" class="column"></td></tr>
+        </tbody>
+    </table>
+</div>
+
+
+
+
+
+
+
+<div style="margin:20px;">
+<button class="btn btn-primary" onclick="row_add()">row_add</button> &nbsp;&nbsp;&nbsp;
+  <button class="btn btn-primary" onclick="row_del()">row_del</button> &nbsp;&nbsp;&nbsp;
+<button class="btn btn-primary"  onclick="col_add()">col_add</button> &nbsp;&nbsp;&nbsp;
+<button class="btn btn-primary"  onclick="col_del()">col_del</button> &nbsp;&nbsp;&nbsp;
+<button class="btn btn-primary"  onclick="save_to_redis()">save-to-redis</button>
+<button class="btn btn-primary"  onclick="save_to_csv()">save-to-csv</button>
+<button class="btn btn-primary"  onclick="out()">out</button>
+</div>
+
+
+
+</body>
+</html>

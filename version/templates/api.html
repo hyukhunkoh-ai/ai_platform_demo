@@ -1,0 +1,984 @@
+<html>
+<head>
+
+  <meta charset="UTF-8">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+
+  <link href="https://fonts.googleapis.com/css?family=Noto+Sans+KR:100,300,400,500,700,900&display=swap&subset=korean" rel="stylesheet">
+
+  <style type="text/css">
+    body {
+      color: #ffffff;
+      margin : 0;
+      padding: 0;
+    }
+    .title {
+      font-family: 'Noto Sans KR', ;
+      font-size: 36px;
+      color: #000000;
+      font-weight: 900;
+    }
+    #semititle {
+      font-family: 'Noto Sans KR', ;
+      font-size: 23px;
+      color: #000000;
+      font-weight: 900;
+    }
+    .label{
+      font-family: 'Noto Sans KR', ;
+      font-size: 15px;
+      color: #000000;
+      font-weight: 900;
+    }
+    #log_label{
+      font-family: 'Noto Sans KR', ;
+      font-size: 13px;
+      color: #000000;
+      font-weight: 500;
+    }
+    .boxed {
+    border: 2px solid green ;
+    }
+    .styled-select {
+       width: 150px;
+       height: 34px;
+       overflow: hidden;
+       background: no-repeat right #fff;
+       border: 0px solid #ccc;
+       margin:auto;
+       border-radius:6px;
+    }
+    .styled-select select {
+       background: transparent;
+       width: 282px;
+       padding: 5px;
+       font-size: 15px;
+       line-height: 1;
+       border: 0;
+       border-radius: 0;
+       height: 34px;
+       -webkit-appearance: none;
+       font-family:helvetica-roman;
+       color:#9C9C9C;
+    }
+
+    .middle {
+      width: 50%;
+      height: 50%;
+      overflow: auto;
+      margin: auto;
+      position: absolute;
+      top: 0; left: 0; bottom: 0; right: 0;
+      border: solid black;
+    }
+    #isbar {
+    position:absolute;
+    z-index: 2;
+    top: 50%;
+    left: 40%;
+
+    }
+
+    .popup_panel { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 100;}
+    .popup_panel div.popup_bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background:#000; opacity:.5; filter:alpha(opacity=50); }
+    .popup_panel div.popup_contents { padding: 10px; position: absolute; top: 30%; left: 35%; width: 30%; height: 40%; border:2px solid #5294DE; background-color:#fff; }
+
+  </style>
+   <script src="https://code.jquery.com/jquery-3.5.1.min.js" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"
+    integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous">
+  </script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
+    integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous">
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.18.0/axios.js"></script>
+  <script id="ajax-setup">
+
+    csrftoken = $('meta[name=csrf-token]').attr('content')
+
+    $.ajaxSetup({
+        beforeSend: function(xhr, settings) {
+          if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+            xhr.setRequestHeader("X-CSRFToken", csrftoken)
+          }
+        }
+    })
+  </script>
+  <script id="for drag/drop event handlers">
+
+  function allowDrop(ev){
+    ev.preventDefault();
+  }
+
+  function drag(ev){
+        drag_start = $(ev.target).attr('data-dragstart')
+        ev.dataTransfer.setData("drag_start", drag_start);
+
+        if (drag_start == 'dataset'){ // dataset start
+        // {"dataset": src[1],"model" : dst[0], "hyper_params": hyper_params,"columns": column_list,"src_type" : csv/redis}
+                ev.dataTransfer.setData("src_name", $(ev.target).attr('name')); // filename
+                ev.dataTransfer.setData("src_type", $(ev.target).attr('data-type')); // filetype : redis/csv
+                ev.dataTransfer.setData("src_cols", $(ev.target).attr('data-cols')); // checked columns
+
+        }
+        else if (drag_start == 'model') { // model start
+        //{"dataset":"train.csv","model":"resnet","columns":"[]","src_type":"csv"}
+                ev.dataTransfer.setData("src_id", ev.target.id);
+                ev.dataTransfer.setData("src_class", $(ev.target).attr('class'));
+
+        }
+  }
+
+  function drop(ev) // default csv
+  {
+      ev.preventDefault();
+
+      document.getElementById('isbar').setAttribute('style','');
+      var drag_start = ev.dataTransfer.getData("drag_start")
+
+      if (drag_start == 'model'){
+          model_to_engine(ev);
+      }
+
+      else if (drag_start == 'dataset')
+      {
+          dst_class = $(ev.target).attr('class');
+          dst = dst_class.split("_");
+
+          if (dst[1] == "train"){
+              dataset_to_engine(ev)
+          }
+
+          else if (dst[1] == "model"){
+              dataset_to_model(ev);
+          }
+
+      }
+
+
+  }
+
+
+
+  // subset function
+  //
+  function get_now(){
+    var Now = new Date();
+    var NowTime = Now.getFullYear();
+    NowTime += '-' + Now.getMonth() + 1 ;
+    NowTime += '-' + Now.getDate();
+    NowTime += ' ' + Now.getHours();
+    NowTime += '-' + Now.getMinutes();
+    NowTime += '-' + Now.getSeconds();
+    return NowTime;
+
+  }
+
+  function to_engine_history_log_maker(ev){
+            const res = [];
+            if (ev.target.getAttribute('name')){
+                res.push(ev.target.getAttribute('name'));
+            }
+            if (ev.dataTransfer.getData("src_name")){
+                var src_name = ev.dataTransfer.getData("src_name");
+                var temp = src_name.split('_');
+                temp.shift();
+                res.push(temp.join('_'));
+            }
+            if ($(ev.target).attr('class')){
+                res.push($(ev.target).attr('class').split("_")[0]);
+            }
+            if ($(ev.target).attr('alt')){
+                res.push($(ev.target).attr('alt'));
+            }
+
+            let history_log = res.join('_');
+            return history_log;
+  }
+
+  function log_wrapper(wrapped){
+    return function(ev) {
+            try{
+            history_log = 'html_init_error';
+            wrapped(ev);
+            } catch (error){
+                 console.log(error);
+                 NowTime = get_now();
+                 uid = '{{ loginid }}'
+
+                 $.ajax({
+                      url: root_path + "/write_history/" + history_log + ' 실패',
+                      type: "GET",
+                      success : function(result){
+                           var obj = document.getElementById("history");
+                           obj.innerHTML += '<b id="log_label">' + NowTime + "    " + uid + "      " + history_log + ' 실패</b><br>';
+                            status_blank = document.getElementById('now_stat');
+                            status_blank.innerHTML = '에러';
+                      },
+                      error: function(request, status, error){
+                      alert('로그 기록 중단');
+                      }
+                 });
+            }
+
+    }
+  }
+
+  function model_to_engine(ev){
+          var src_id = ev.dataTransfer.getData("src_id"); // modelname
+          var src_class = ev.dataTransfer.getData("src_class"); // model type:dt, resnet
+          var src = src_class.split("_");
+          if (src[0] == "decision")
+          {
+             alert('재학습 불가능한 모델입니다.');
+          }
+
+          else if (src[0] == "resnet")
+          {
+              var dst_class = $(ev.target).attr('class');
+              var dst = dst_class.split("_");
+
+              if (dst[0] == src[0])
+              {
+                  temp = document.getElementById(src_id).getAttribute('id');
+                  $(ev.target).attr("name", 'retrain');
+                  $(ev.target).attr("id", temp);
+                  $(ev.target).parent().children().last().html('Model : ' + temp);
+
+              }
+              else{
+                   alert('resnet engine 위에 올려주세요');
+              }
+
+          }
+          document.getElementById('isbar').setAttribute('style','display:None');
+  }
+
+
+  function dataset_to_engine(ev){
+      var NowTime = get_now();
+      var uid = '{{ loginid }}';
+
+      var status_blank = document.getElementById('now_stat');
+      status_blank.innerHTML = '진행중';
+
+
+      src_name = ev.dataTransfer.getData("src_name");
+      var temp = src_name.split('_');
+      temp.shift();
+      data_name = temp.join('_');
+      src_type = ev.dataTransfer.getData("src_type");
+      src_cols = ev.dataTransfer.getData("src_cols");
+      column_list = []
+      if(src_cols){
+           column_list = src_cols
+      }
+
+      dst_class = $(ev.target).attr('class');
+      dst = dst_class.split("_");
+
+      hyper_params = $(ev.target).attr('alt');
+      history_log = to_engine_history_log_maker(ev);
+
+      if (dst[0] == "resnet"){
+      progress_bar_ev();
+      }
+
+
+
+      if (ev.target.getAttribute('name') == "train")
+      {
+
+          $.ajax
+          ({
+                  url: root_path + "/train_page",
+                  type: "POST",
+                  data: JSON.stringify({"dataset": data_name,"model" : dst[0], "hyper_params": hyper_params,"columns": column_list,"src_type" : src_type}),
+                  contentType: "application/json",
+
+                  success : function(result)
+                  {
+                          status_blank.innerHTML = '완료';
+                          document.getElementById('isbar').setAttribute('style','display:None');
+
+
+                          res = JSON.parse(result)
+                          var obj = document.getElementById('model_table');
+                          if (column_list == '[]' || column_list == []){
+                            replaced_column_list = 'all';
+                          }
+                          else{
+                            replaced_column_list = column_list;
+                          }
+
+                          if (dst[0] == 'decision'){
+                          obj.innerHTML += '<tr><td><img src="' + '{{ url_for('static', filename='model.png') }}"' + '" border="0" data-dragstart="model" class ="' + dst[0] + '_model" id="' + res['filename'] + '" draggable="true" ondrop="log_wrapper(drop)(event)" ondragover="allowDrop(event)" ondragstart="drag(event)" /><button onclick="window.open(' + `'/trace_html?modelname=${res['filename']}&modeltype=dt')` + '">chart</button> </td> <td>' + '<a href="/model_downloads/' + res['filename'] + '" download="'+ res['filename'] + '">' + res['filename'] + '</a> <div>' + replaced_column_list + '</div> </td><td style="border-left: 1px solid black;" id="label">acc&nbsp;:</td><td class="acc_label"><span style="margin:5px;">' + res['acc'] + '</span></td><td><button data-name="' + res['filename'].trim() + '" class="delete btn" data-del_type="model" onclick="live_delete(event)" style="margin:10px;">X</button></td></tr>'
+                          }
+
+                          else if (dst[0] == 'resnet'){
+                          obj.innerHTML += '<tr><td><img src="' + '{{ url_for('static', filename='model.png') }}"' + '" border="0" data-dragstart="model" class ="' + dst[0] + '_model" id="' + res['filename'] + '" draggable="true" ondrop="log_wrapper(drop)(event)" ondragover="allowDrop(event)" ondragstart="drag(event)" /><button onclick="window.open(' + `'/trace_html?modelname=${res['filename']}&modeltype=resnet')` + '">chart</button> </td> <td>' + '<a href="/model_downloads/' + res['filename'] + '" download="'+ res['filename'] + '">' + res['filename'] + '</a> <div>' + replaced_column_list + '</div> </td><td style="border-left: 1px solid black;" id="label">acc&nbsp;:</td><td class="acc_label"><span style="margin:5px;">' + res['acc'] + '</span></td><td><button data-name="' + res['filename'].trim() + '" class="delete btn" data-del_type="model" onclick="live_delete(event)" style="margin:10px;">X</button></td></tr>'
+                          }
+
+                          $.get('/write_history/' + history_log + ' 성공', function(result){
+                                   var obj = document.getElementById("history");
+                                   obj.innerHTML += '<b id="log_label">' + NowTime + "    " + uid + "      " + history_log + ' 성공</b><br>';
+                          });
+
+
+                  },
+                  error: function(request, status, error)
+                  {
+                        status_blank.innerHTML = '에러';
+
+                        $.ajax({
+                            url: root_path + "/write_history/" + history_log + ' 실패',
+                            type: "GET",
+                            success : function(result){
+                                 var obj = document.getElementById("history");
+                                 obj.innerHTML += '<b id="log_label">' + NowTime + "    " + uid + "      " + history_log + ' 실패</b><br>';
+                            },
+                            error: function(request, status, error){
+                            alert(error);
+                            }
+                        });
+                  }
+          });
+
+      }
+
+
+      // retrain process
+
+      else if (ev.target.getAttribute('name') == "retrain")
+      {
+          var dst_id = $(ev.target).attr('id');
+
+          $.ajax({
+                    url: "/retrain_page",
+                    type: "POST",
+                    data: JSON.stringify({"dataset": data_name,"model" : dst[0], "model_file":dst_id, "hyper_params": hyper_params, "columns": column_list,"src_type" : src_type}),
+                    contentType: "application/json",
+                    success : function(result){
+
+                        status_blank.innerHTML = '완료';
+                        document.getElementById('isbar').setAttribute('style','display:None');
+                        res = JSON.parse(result)
+                        var obj = document.getElementById('model_table').firstElementChild;
+                        if (column_list == '[]' || column_list == []){
+                            replaced_column_list = 'all';
+                        }
+                        else{
+                            replaced_column_list = column_list;
+                        }
+                        if (dst[0] == 'resnet'){
+                          obj.innerHTML += '<tr><td><img src="' + '{{ url_for('static', filename='model.png') }}"' + '" border="0" data-dragstart="model" class ="' + dst[0] + '_model" id="' + res['filename'] + '" draggable="true" ondrop="log_wrapper(drop)(event)" ondragover="allowDrop(event)" ondragstart="drag(event)" /><button onclick="window.open(' + `'/trace_html?modelname=${res['filename']}&modeltype=resnet')` + '">chart</button> </td> <td>' + '<a href="/model_downloads/' + res['filename'] + '" download="'+ res['filename'] + '">' + res['filename'] + '</a> <div>' + replaced_column_list + '</div> </td><td style="border-left: 1px solid black;" id="label">acc&nbsp;:</td><td class="acc_label"><span style="margin:5px;">' + res['acc'] + '</span></td><td><button data-name="' + res['filename'].trim() + '" class="delete btn" data-del_type="model" onclick="live_delete(event)" style="margin:10px;">X</button></td></tr>'
+                        }
+
+
+                        $.ajax({
+                            url: root_path + "/write_history/" + history_log + ' 성공',
+                            type: "GET",
+                            success : function(result){
+                                 var obj = document.getElementById("history");
+                                 obj.innerHTML += '<b id="log_label">' + NowTime + "    " + uid + "      " + history_log + ' 성공</b><br>';
+                            },
+                            error: function(request, status, error){
+                            alert(error);
+                            }
+                        });
+
+                    },
+                    error: function(request, status, error){
+                        status_blank.innerHTML = '에러';
+                        $.ajax({
+                                url: root_path + "/write_history/" + history_log + ' 실패',
+                                type: "GET",
+                                success : function(result){
+                                     var obj = document.getElementById("history");
+                                     obj.innerHTML += '<b id="log_label">' + NowTime + "    " + uid + "      " + history_log + ' 실패</b><br>';
+                                },
+                                error: function(request, status, error){
+                                alert(error);
+                                }
+                        });
+                    }
+          });
+
+
+      }
+
+
+  }
+
+
+
+
+  function dataset_to_model(ev){
+      var NowTime = get_now();
+      var uid = '{{ loginid }}';
+
+      var status_blank = document.getElementById('now_stat');
+      status_blank.innerHTML = '진행중';
+
+
+      src_name = ev.dataTransfer.getData("src_name");
+      var temp = src_name.split('_');
+      temp.shift();
+      data_name = temp.join('_');
+
+      src_type = ev.dataTransfer.getData("src_type");
+      src_cols = ev.dataTransfer.getData("src_cols");
+      column_list = []
+      if(src_cols){
+           column_list = src_cols
+      }
+
+      dst_class = $(ev.target).attr('class');
+      dst = dst_class.split("_");
+      var dst_name = ev.target.id;
+      var history_log =  dst[1] + "_" + temp.join() + "_" + dst_name;
+
+      $.ajax
+      ({
+          url: "/predict_page",
+          type: "POST",
+          data: JSON.stringify({"dataset": data_name,"model" : dst[0],'model_file' : dst_name,"src_type" : src_type,"columns": column_list}),
+          contentType: "application/json",
+          success : function(result){
+              if(result)
+                  {
+
+                    status_blank.innerHTML = '완료';
+                    document.getElementById('isbar').setAttribute('style','display:None');
+                    result = result.replace(/\n/g, "");
+
+                    var obj = document.getElementById('result_table');
+                    obj.innerHTML += '<tr><td><img src="' + "{{ url_for('static', filename='preds.png') }}" + '" border="0" id="result_' + result + '" class="pred" draggable="true"/> </td> <td> <table width="90%" cellpadding="0" cellspacing="0" border="0" bgcolor="#edabc7"> <tr> <td id="label"><a href="/result_download_from_redis/' + result + '" download="' + result + '">' + result + `</a></td></tr> </table> </td><td><button data-name="${result}" class="delete btn" data-del_type="result" onclick="live_delete(event)">X</button></td></tr>`;
+                    $.ajax
+                    ({
+                        url: root_path + '/write_history/' + history_log + ' 성공',
+                        type: "GET",
+                        success : function(result){
+
+                           var obj = document.getElementById("history");
+                           obj.innerHTML += '<b id="log_label">' + NowTime + "    " + uid + "      " + history_log + ' 성공</b><br>';
+
+                        },
+                        error: function(request, status, error){
+                        // alert(error);
+                        alert('history error');
+                        }
+                    });
+
+                  }
+          },
+          error: function(request, status, error)
+          {
+            status_blank.innerHTML = '에러';
+            $.ajax
+            ({
+                url: root_path + '/write_history/' + history_log + ' 실패',
+                type: "GET",
+                success : function(result){
+                   var obj = document.getElementById("history");
+                   obj.innerHTML += '<b id="log_label">' + NowTime + "    " + uid + "      " + history_log + ' 실패</b><br>';
+
+                },
+                error: function(request, status, error){
+                status_blank.innerHTML = '에러';
+                // alert(error);
+                }
+            });
+
+          }
+      });
+  }
+
+
+
+  function popupOpen(e){
+          var $panel = $(".popup_panel");
+          var $panelContents = $panel.find(".popup_contents");
+          $panel.find("#html_contents").load('/load_globs');
+          $panel.fadeIn();
+  }
+  function popupClose(e) {
+          var $panel = $(".popup_panel");
+          $panel.fadeOut();
+          $("#contents").show();
+          $("#update").hide();
+          $("#updatebutton").html("수정하기");
+
+          e.preventDefault();
+  }
+  </script>
+
+  <script id="for history log"> function log_delete_all(){
+        $.get("/log_delete_all",function(result){
+            document.getElementById("history").innerHTML = '';
+        });
+    }</script>
+
+  <script id="for add/load engines">
+    var nums = 0
+    var root_path = $(location).attr('protocol') + "//" + $(location).attr('host');
+
+    function AiSelect(input){
+        ai = input.options[input.selectedIndex].text
+        obj = document.getElementById("for_parameters");
+        if (ai == "Decision_Tree")
+        {
+           token = '{{ dtform.csrf_token }} &nbsp; {{ dtform.message.label("파라미터가 필요없는 모델입니다.") }}';
+           button = '&nbsp &nbsp <button class="btn btn-primary" onclick="dt_engine()">엔진추가</button>';
+        }
+
+        else if (ai == "ResNet")
+        {
+           token = '{{ aiform.csrf_token }} &nbsp; {{ aiform.epochs.label("epochs") }} {{ aiform.epochs(class="form-control",placeholder="ex) 30", size=5) }} {{ aiform.lr.label("learning_rate") }} {{ aiform.lr(class="form-control",placeholder="default : 0.001",size=10) }} {{ aiform.bs.label("batch_size") }} {{ aiform.bs(class="form-control",placeholder="ex) 32",size=3) }}';
+           button = '&nbsp &nbsp <button class="btn btn-primary" onclick="resnet_engine()">엔진추가</button>';
+        }
+        obj.innerHTML = token
+        obj.innerHTML += button
+
+    }
+    function load_engine_history(){
+      $.post("/live_engine_load",'',function(result){
+                for (var i in result) {
+                    ith = JSON.parse(result[i]);
+                    add_html_engine_history(ith)
+                }
+      });
+    }
+
+    function live_delete(e){
+        del_type = $(e.target).attr('data-del_type');
+        if (del_type == 'data_csv'){
+            csv_delete(e);
+        }
+        else if (del_type == 'data_view'){
+            view_delete(e);
+        }
+        else if (del_type == 'engine'){
+            live_engine_delete(e);
+        }
+        else if (del_type == 'model'){
+            live_trained_model_delete(e);
+        }
+        else if (del_type == 'result'){
+            live_result_delete(e);
+        }
+    }
+    function redis_load(){
+        $.post("/redis_load",'',function(result){
+              res = JSON.parse(result);
+              obj = document.getElementById('data_blank').firstElementChild;
+              for (var i in res){
+                obj.innerHTML += `<tr id="row-for-${i}">
+                                    <td width="20%">
+                                      <img src="{{ url_for('static', filename='from_redis.png') }}" data-dragstart="dataset" border="0" name="dataset_${i}" draggable="true" data-cols = "${res[i]}"data-type="redis" data-cols="${res[i]}" ondragstart="drag(event)" /></td>
+                                     <td width="20%">
+                                        <a href="/redis_data_downloads/${i}" download="${i}">${i}</a><br>
+                                        <a href="/successive_excel_sheet?name=${i}&type=redis">수정하기</a>
+                                    </td>
+                                  </tr>
+                                  <tr style="height:15px"></tr>`;
+              }
+        });
+    }
+
+    function new_excel_frame(){
+        url = $(location).attr('protocol') + "//" + $(location).attr('host') + '/new_excel_frame'
+        window.location = url
+    }
+
+
+    function csv_copy(ev){
+      data_name = $(ev.target).attr('data-name')
+      $.post("/csv_copy_dedit",{"data_name":data_name},function(result){});
+      window.location = '/api'
+    }
+
+
+    function progress_bar_ev(){
+      window.open('/progresbar_html','during_train',"width=800,height=200,toolbar=no,left=700,top=700");
+    }
+
+    // $(document).ready(function(){});
+    $(window).on('load', function(){
+        load_engine_history();
+        redis_load();
+    });
+
+
+
+    // subset function
+    //
+    function dt_engine(){
+        engine_name = 'Decision_Tree';
+
+        var obj = document.getElementById("add_engine_blank");
+        table = '<tr> <td> <table class="engine-table" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#7134bf"> <tr>' + '<td width="90%"><img src="' + "{{ url_for('static', filename='engine.png') }}" + '" border="0" class="decision_train" ondrop="log_wrapper(drop)(event)" ondragover="allowDrop(event)" name="train" alt="no parameters"/> <div><b>학습엔진_tree</b></div> <div id="decision_train_model">Model: </div> </td><td><button class="delete btn" data-del_type="engine" onclick="live_delete(event)">X</button> </td></tr> </table>';
+        obj.innerHTML += table
+        line = '<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#7134bf"> <tr><td height="2" bgcolor="#333333"></td></tr> </table>';
+        obj.innerHTML += line
+        send_params = {"name" : engine_name };
+
+        $.post("/live_engine_insert",send_params,function(){
+            $('#for_parameters').html('');
+        })
+    }
+
+    function resnet_engine(){
+        engine_name = 'ResNet'
+        var obj = document.getElementById("add_engine_blank");
+        var ep = document.getElementById("epochs").value;
+        var lr = document.getElementById("lr").value;
+        var bs = document.getElementById("bs").value;
+        if (ep == ''){ ep = 30}
+        if (lr == ''){ lr = 0.01}
+        if (bs == ''){ bs = 16}
+        var params = {"bs":  bs, "epoch": ep, "lr": lr};
+        hyper_params = JSON.stringify(params);
+        send_params = params;
+        send_params['name'] = engine_name;
+
+
+        table = '<table class="engine-table" width="100%" cellpadding="0" cellspacing="0" border="0"> <tr> <td width="90%"><img src="' + "{{ url_for('static', filename='engine.png') }}" + '" border="0" class="resnet_train" name="train" ondragover="allowDrop(event)" ondrop="log_wrapper(drop)(event)" alt='+ "'" + hyper_params + "'" + '/> <div><b>학습엔진_resnet[ '+ hyper_params + ' ] </b></div> <div class="resnet_train_model">Model: </div>' + '<td><button class="delete btn" data-del_type="engine" onclick="live_delete(event)">X</button>  </tr>';
+        line = '<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#7134bf"> <tr><td height="2" bgcolor="#333333"><div id="hyper_params'+ nums + '" style="display:none;">' + hyper_params + '</div></td></tr> </table>';
+        obj.innerHTML += table;
+        obj.innerHTML += line;
+
+        $.post("/live_engine_insert",send_params,function(){
+            $('#for_parameters').html('');
+        })
+
+    }
+
+
+
+
+    function add_html_engine_history(ith,){
+        var obj = document.getElementById("add_engine_blank");
+        if (ith['name'] == 'ResNet'){
+            var hyper_params = ith
+            delete hyper_params['name']
+            hyper_params = JSON.stringify(hyper_params);
+            obj.innerHTML += '<table class="engine-table" width="100%" cellpadding="0" cellspacing="0" border="0"> <tr> <td width="90%"><img src="' + "{{ url_for('static', filename='engine.png') }}" + '" border="0" class="resnet_train" name="train" ondragover="allowDrop(event)" ondrop="log_wrapper(drop)(event)" alt='+ "'" + hyper_params + "'" + '/> <div><b>학습엔진_resnet[ '+ hyper_params + ' ] </b></div> <div class="resnet_train_model">Model: </div>' + '<td><button class="delete btn" data-del_type="engine" onclick="live_delete(event)">X</button>  </tr>';
+            obj.innerHTML += '<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#7134bf"> <tr><td height="2" bgcolor="#333333"><div id="hyper_params'+ nums + '" style="display:none;">' + hyper_params + '</div></td></tr> </table>';
+        }
+
+        else if(ith['name'] == 'Decision_Tree'){
+            obj.innerHTML += '<tr> <td> <table class="engine-table" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#7134bf"> <tr>' + '<td width="90%"><img src="' + "{{ url_for('static', filename='engine.png') }}" + '" border="0" class="decision_train" ondrop="log_wrapper(drop)(event)" ondragover="allowDrop(event)" name="train" alt="no parameters"/> <div><b>학습엔진_tree</b></div> <div id="decision_train_model">Model: </div> </td><td><button class="delete btn" data-del_type="engine" onclick="live_delete(event)">X</button> </td></tr> </table>';
+            obj.innerHTML += '<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#7134bf"> <tr><td height="2" bgcolor="#333333"></td></tr> </table>';
+        }
+    }
+
+
+
+    function live_trained_model_delete(e){
+       model_name = $(e.target).attr('data-name');
+       $.post("/live_trained_model_delete",model_name,function(result){
+                      $(e.target).parent().parent().remove();
+       });
+    }
+    function live_result_delete(e){
+       model_name = $(e.target).attr('data-name');
+       $.post("/live_result_delete",model_name,function(result){
+                      $(e.target).parent().parent().remove();
+       });
+    }
+
+    function live_engine_delete(e)
+    {
+       root_path = $(location).attr('protocol') + "//" + $(location).attr('host');
+       current_element = $(e.target).parent().parent().parent().parent()
+       line = current_element.next()
+       params = line.find('div').text();
+
+       modeltype = current_element.find('img').attr('class').split('_')[0];
+       if (modeltype == 'resnet'){
+          send_params = JSON.parse(params);
+          send_params['name'] = 'ResNet';
+       }
+       else if (modeltype == 'decision'){
+          send_params = {"name" : 'Decision_Tree' };
+       }
+       $.post("/live_engine_delete",send_params,function(res){})
+
+       line.remove();
+       current_element.remove();
+
+    }
+
+
+    function csv_delete(ev){
+      data_name = $(ev.target).attr('data-name')
+      $.post("/csv_delete",{"data_name":data_name},function(result){});
+      $(ev.target).parent().parent().next().remove();
+      $(ev.target).parent().parent().remove();
+    }
+    function view_delete(ev){
+        var cols = $(ev.target).parent().parent().find("img").attr('data-cols');
+
+        name = $(ev.target).parent().parent().find("img").attr('name');
+        var name = name.split('_');
+        name.shift(); //  delete first element
+        filtered_name = name.join('_');
+        $.post("/view_delete",{"name":filtered_name,"cols":cols},function(result){
+                        $(ev.target).parent().parent().next().remove();
+                        $(ev.target).parent().parent().remove();
+        });
+    }
+
+
+
+
+  </script>
+
+</head>
+
+<body>
+<script id="progress_bar_event">
+
+</script>
+
+<div id="progress_bars" style="color: black;"></div>
+  <table width="70%" cellpadding="0" cellspacing="0" border="0">
+    <tr height="50">
+      <td width="80" class="label">--사용자: </td>
+      <td width="60" class="label"> {{ loginid }} </td>
+      <td><button class="btn btn-primary" onclick="location.href='/'"> 로그인화면 </button></td>
+
+    </tr>
+
+    <tr>
+      <td width="80" class="label">--status : </td>
+      <td width="80"><div id="now_stat" style="color: #FF0000;">진행여부</div></td>
+    </tr>
+
+  </table>
+
+  <br>
+
+  <table width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr height="60">
+      <td width="300" class="title">&nbsp;Dataset <button onclick="new_excel_frame()">NEW</button> <button onclick="popupOpen(event)">file upload</button> </td>
+      <td width="4" bgcolor="#333333"></td>
+      <td width="300" class="title">AI Engine </td>
+      <td width="4" bgcolor="#333333"></td>
+      <td class="title" width="300">&nbsp;Model</td>
+        <td width="4" bgcolor="#333333"></td>
+      <td class="title" width="300"> Results</td>
+    </tr>
+
+    <tr>
+      <td bgcolor="#00d2d6" valign="top" id = "data_blank" width="200">
+          <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#00d2d6">
+            {% for csv_name in csv_data_list %}
+            <tr id="row-for-{{ csv_name }}.csv">
+              <td width="20%">
+                <img src="{{ url_for('static', filename='dataset.png') }}" data-dragstart="dataset" data-cols="" data-type="csv" border="0" name="dataset_{{ csv_name }}.csv" draggable="true" ondragstart="drag(event)" /></td>
+              <td width="20%">
+                <a href="/data_downloads/{{ csv_name }}.csv" download="{{ csv_name }}.csv">{{ csv_name }}.csv</a><br>
+                <a href="/successive_excel_sheet?name={{ csv_name }}&type=csv"> 수정하기</a>
+                <button data-name="{{ csv_name }}" onclick="csv_copy(event)"> copy</button>
+              </td>
+              <td width="60%" class="col-check">
+              </td>
+              <td>
+              <button data-name="{{  csv_name }}" class="delete btn" data-del_type="data_csv" onclick="live_delete(event)" style="margin:20px;">X</button>
+              </td>
+            </tr>
+
+            <tr style="height:15px"></tr>
+            {% endfor %}
+<!--            content -> cols,name,type-->
+<!--            table view -->
+            {% for _, content in vlist.items() %}
+
+            <tr id="row-for-{{ content[1] }}">
+              <td width="20%">
+                <img src="{{ url_for('static', filename='view.png') }}" data-dragstart="dataset" data-type="view_{{ content[2] }}" border="0" name="dataset_{{ content[1] }}" data-cols="{{ content[0]|replace('\'','')|replace('[','')|replace(' ','')|replace(']','') }}" draggable="true" ondragstart="drag(event)" /></td>
+              <td width="20%">
+                <b style="display:inline-block"> {{ content[1] }} from {{ content[2] }}(n:{{ content[0]|length }})</b>
+                <a href="/view_sheet?name={{ content[1] }}&cols={{ content[0]|replace('\'','')|replace('[','')|replace(' ','')|replace(']','') }}&type={{ content[2] }}"> columns</a>
+              </td>
+              <td width="40%">
+
+              </td>
+              <td >
+                    <button data-del_type="data_view" onclick="live_delete(event)" style="margin: 20px;">X</button>
+              </td>
+            </tr>
+            <tr style="height:15px"></tr>
+            {% endfor %}
+
+
+          </table>
+
+
+
+
+      <td bgcolor="#333333"><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br></td>
+
+
+
+
+      <td id="add_engine_blank" bgcolor="#7134bf" valign="top" width="300">
+
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="edabc7">
+
+          <tr>
+
+            <td>
+                <select id="select-ai" class="styled-select" name="boxes" onchange="AiSelect(this)" style="margin:2px;">
+                  <option value="" selected disabled> 선택을 하세요.</option>
+                  {% for m in mlist %}
+                  <option value="{{ m }}">{{ m }} </option>
+                  {% endfor %}
+                </select>
+            </td>
+          </tr>
+          <tr>
+            <td id="for_parameters"> </td>
+
+          </tr>
+        </table>
+
+      </td>
+
+
+      <td bgcolor="#333333"></td>
+
+
+
+      <td bgcolor="#edabc7" valign="top" id="model_blank" width="300">
+          <table id="model_table" width="97%" cellpadding="0" cellspacing="0" border="0" bgcolor="#edabc7">
+              {% for modelname, dicts in mpath.items() %}
+              {% if modelname.split('_')[0] == 'DT' %}
+              <tr>
+                <td><img src="{{ url_for('static', filename='model.png') }}" border="0" data-dragstart="model" class="decision_model" id="{{ modelname }}" ondragover="allowDrop(event)" draggable="true" ondrop="log_wrapper(drop)(event)" ondragstart="drag(event)" alt=""/><button onclick="window.open('/trace_html?modelname={{ modelname }}&modeltype=dt')">chart</button></td>
+                <td>
+                  <a href="/model_downloads/{{ modelname }}" download="{{ modelname }}">{{ modelname }}</a>
+                  <div>{{ dicts['col'] }}</div>
+                </td>
+                <td style="border-left: 1px solid black;" id="label">acc&nbsp;:</td>
+                <td class="acc_label"><span style="margin:5px;">{{ dicts['acc'] }}</span></td>
+                <td>
+                  <button data-name="{{ modelname }}" class="delete btn" data-del_type="model" onclick="live_delete(event)" style="margin:10px;">X</button>
+                </td>
+              </tr>
+              {% elif modelname.split('_')[0] == 'Resnet' %}
+              <tr>
+                <td><img src="{{ url_for('static', filename='model.png') }}" border="0" data-dragstart="model" class="resnet_model" id="{{ modelname }}" ondragover="allowDrop(event)" ondrop="log_wrapper(drop)(event)" draggable="true" ondragstart="drag(event)" alt=""/><button onclick="window.open('/trace_html?modelname={{ modelname }}&modeltype=resnet')">chart</button></td>
+                <td>
+                  <a href="/model_downloads/{{ modelname }}" download="{{ modelname }}">{{ modelname }}</a>
+                  <div>{{ dicts['col'] }}</div>
+                </td>
+                <td style="border-left: 1px solid black;" id="label">acc&nbsp;:</td>
+                <td class="acc_label"><span style="margin:5px;">{{ dicts['acc'] }}</span></td>
+                <td>
+                  <button data-name="{{ modelname }}" class="delete btn" data-del_type="model" onclick="live_delete(event)" style="margin:10px;">X</button>
+                </td>
+              </tr>
+              {% endif %}
+              {% endfor %}
+          </table>
+      </td>
+
+
+      <td bgcolor="#333333"></td>
+
+
+
+
+      <td bgcolor="#edabc7" valign="top" id="result_blank" width="300">
+        <table id="result_table" width="90%" cellpadding="0" cellspacing="0" border="0" bgcolor="#edabc7">
+            {% for _,k in rpath.items() %}
+            <tr>
+              <td>
+                <img src="{{ url_for('static', filename='preds.png') }}" border="0" id="result_{{ k }}" class="pred" draggable="true"/>
+              </td>
+
+              <td>
+                <table width="90%" cellpadding="0" cellspacing="0" border="0" bgcolor="#edabc7">
+                  <tr>
+                    <td id="label"><a href="/result_download_from_redis/{{ k }}" download="{{ k }}">{{ k }}</a></td>
+                  </tr>
+                </table>
+              </td>
+              <td>
+                  <button data-name="{{  k }}" class="delete btn" data-del_type="result" onclick="live_delete(event)">X</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+      </td>
+
+
+  </table>
+
+  <table width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td height="3" bgcolor="#33333"></td>
+    </tr>
+  </table>
+
+  <br><br><br><br>
+
+
+  <table width="100%" cellpadding="0" cellspacing="0" border="0">
+
+
+
+    <tr>
+      <td height="2" bgcolor="#33333"></td>
+    </tr>
+    <tr>
+      <td width="100" bgcolor="#000000"> history_log</td>
+      <td><button onclick="log_delete_all()">clear_log</button></td>
+    </tr>
+  </table>
+
+
+
+  <div id="history" class="boxed" style="height: auto">
+    {% for _,l in logs.items() %}
+    <b id="log_label"> {{ l }}</b><br>
+
+    {% endfor %}
+  </div>
+
+
+<img id="isbar" src="{{ url_for('static', filename='progressbar.gif') }}" border="0" style="display:None" width="200px" height="200px"/>
+
+
+
+<div class="popup_panel">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <script>
+
+    var csrftoken = $('meta[name=csrf-token]').attr('content')
+
+    $.ajaxSetup({
+        beforeSend: function(xhr, settings) {
+          if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+            xhr.setRequestHeader("X-CSRFToken", csrftoken)
+          }
+        }
+    })
+  </script>
+      <div class="popup_bg"></div>
+      <div class="popup_contents">
+          <div style="height:100%;">
+
+              <div id = "html_contents" style="width:100%; position:relative;"><!--상세보기 Contents--></div>
+              <div id = "html_update" style="width:100%; position:relative; display:none;"></div>
+              <button class="btn btn-primary" onclick="popupClose(event)">OUT</button>
+          </div>
+      </div>
+</div>
+
+
+</body>
+</html>

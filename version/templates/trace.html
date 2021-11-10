@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <title>Chart_Viewer</title>
+
+ <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+  <script src="https://canvasjs.com/assets/script/canvasjs.min.js"></script>
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css">
+
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+
+  <style>
+    div.scrollmenu {
+      background-color: #333;
+      overflow: auto;
+      white-space: nowrap;
+      margin : 2px;
+    }
+
+    div.scrollmenu div {
+      display: inline-block;
+      color: white;
+      text-align: center;
+      padding: 14px;
+      background:black
+    }
+
+    div.scrollmenu div:hover {
+      background-color: #777;
+    }
+  </style>
+    <script>
+
+    var csrftoken = $('meta[name=csrf-token]').attr('content')
+
+    $.ajaxSetup({
+        beforeSend: function(xhr, settings) {
+          if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+            xhr.setRequestHeader("X-CSRFToken", csrftoken)
+          }
+        }
+    })
+  </script>
+
+    <script>
+      var root_path = $(location).attr('protocol') + "//" + $(location).attr('host');
+
+
+      function out(){
+
+
+          window.close();
+
+      }
+
+
+
+
+    </script>
+  <script>
+      function init_chart_kinds(chart_type){
+
+
+          var obj = document.getElementById('chart_kinds');
+
+          if (chart_type == 'resnet'){
+              arr_metric = ['mean','std','loss','acc'];
+              for (var chart of arr_metric){
+                  obj.innerHTML += `<div id=${chart} class="off" style="">${chart}</div>`;
+              }
+          }
+          else if (chart_type == 'dt'){
+              arr_metric = ['feature_importance','tree'];
+              for (var chart of arr_metric){
+
+                  obj.innerHTML += `<div id=${chart} class="off" style="">${chart}</div>`;
+              }
+
+          }
+          else{
+              alert('no model chart');
+          }
+
+
+      }
+
+
+      if ('{{ chart_type }}'  == 'resnet'){
+          var arr_metric = ['acc','loss','std','mean'];
+          pop_metric = arr_metric;
+      }
+      else if ('{{ chart_type }}' == 'dt'){
+          var arr_metric = ['tree','feature_importance'];
+          pop_metric = arr_metric;
+      }
+
+      function load_chart(modelname,chart_type){
+          name = document.getElementById('model_name').innerHTML;
+          container = document.getElementById("chart container")
+          container.innerHTML = 'loading';
+
+          if (chart_type == 'resnet'){
+              if (pop_metric.length != 0 ){
+                metric = pop_metric.pop();
+              }
+              else
+              {
+                var arr_metric = ['acc','loss','std','mean'];
+                pop_metric = arr_metric;
+                metric = pop_metric.pop();
+              }
+              figname = modelname + '_' + metric + '_list.png';
+          }
+
+          else if (chart_type == 'dt')
+          {
+              if (pop_metric.length != 0){metric = pop_metric.pop();}
+              else
+              {
+
+                  var arr_metric = ['tree','feature_importance'];
+                  pop_metric = arr_metric;
+                  metric = pop_metric.pop();
+              }
+              figname = modelname + '_' + metric + '.png';
+          }
+
+          var name_box = document.getElementsByClassName('on');
+          div_box = document.getElementById(metric);
+
+          if (name_box.length != 0){
+              $('.on').attr('style','color:white;');
+              $('.on').attr('class','off');
+          }
+
+          div_box.setAttribute('style','color:red;');
+          div_box.setAttribute('class','on');
+          
+          container.innerHTML = `<img src="/load_chart/${figname}" border="0" />`;
+
+      }
+
+
+  </script>
+
+
+
+<script id="window_load_excel_data">
+ window.addEventListener("load", function(event) {
+    kind = "{{ chart_type }}"
+    init_chart_kinds(kind);
+
+  });
+
+</script>
+</head>
+<body>
+<div style="margin:20px;" id="chart_name"><h1>charts</h1> <button class="btn btn-primary"  onclick="load_chart('{{ model_name }}','{{ chart_type }}')">NEXT</button>&nbsp;<button class="btn btn-primary"  onclick="out()">OUT</button></div>
+<div style="display:hidden" id="model_name">{{ model_name }}</div>
+<div class="scrollmenu" id="chart_kinds">
+
+
+
+</div>
+
+
+<div id="chart container">
+
+<!--  summary - 콘테이너-->
+
+</div>
+
+
+
+</body>
+</html>

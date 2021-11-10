@@ -1,0 +1,57 @@
+<html>
+
+<head>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+    integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous" />
+
+  <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"
+    integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous">
+  </script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
+    integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous">
+  </script>
+
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js">
+  </script>
+<link rel="shortcut icon" href="data:image/x-icon;," type="image/x-icon">
+
+</head>
+
+<body>
+  <div class="container">
+    <div class="row mt-5">
+      <h1>Home</h1>
+    </div><br>
+    <div id="register-div">
+      <button class="btn btn-primary" onclick="location.href='/register'"> 회원가입 </button>
+      {% if loginid %}
+      <button class="btn btn-primary" onclick="location.href='/delete_register'"> 회원삭제 </button>
+      {% endif %}
+    </div>
+    <div>--------------------</div><br>
+      <div id="login-div">
+      <button class="btn btn-primary" onclick="location.href='/login'"> 로그인 </button>
+            </div>
+    <div id="loginid-div">
+            {{ form.islogin.label("로그인된 아이디 : ") }}
+            {% if loginid %}
+            {{ loginid }}
+            &nbsp;&nbsp;<button class="btn btn-primary" onclick="location.href='/api'"> 학습창 이동 </button>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            {% endif %}
+    </div>
+      <div>--------------------</div><br>
+    <div id="logout-div">
+      <button class="btn btn-primary" onclick="location.href='/logout'"> 로그아웃 </button>
+    </div>
+
+
+
+  </div>
+</body>
+
+</html>
+
+

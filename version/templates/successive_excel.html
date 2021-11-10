@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <title>Excel</title>
+
+
+
+  </script>  <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"
+    integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous">
+  </script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
+    integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous">
+  </script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.18.0/axios.js"></script>
+
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+    <script>
+
+    var csrftoken = $('meta[name=csrf-token]').attr('content')
+
+    $.ajaxSetup({
+        beforeSend: function(xhr, settings) {
+          if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+            xhr.setRequestHeader("X-CSRFToken", csrftoken)
+          }
+        }
+    })
+
+  </script>
+
+<style>
+  div#excel_container {width=100%;margin:20px;overflow:auto;}
+  table#main_table {white-space:nowrap;border-collapse:collapse;}
+  th, td {
+    border: 1px solid;
+  }
+</style>
+    <script>
+      var root_path = $(location).attr('protocol') + "//" + $(location).attr('host');
+      function row_add(){
+            delete_del_btn();
+            var num_columns = "";
+
+            cell_contents = document.getElementById('cell_contents');
+            var row_idx = cell_contents.childElementCount;
+
+            head_contents = document.getElementById('row_cols');
+            var num = head_contents.childElementCount;
+
+            for(var i=0; i<num; i++)
+            {
+                if (i==0){
+                num_columns += `<td id="r${row_idx}" contenteditable="true">${row_idx}</td>`;
+                }
+                else{
+                num_columns += `<td contenteditable="true"></td>`;
+                }
+            }
+
+            cell_contents.innerHTML += '<tr class="rows">' + num_columns + '</tr>';
+            delbox_check_event();
+
+      }
+      function col_add()
+      {     delete_del_btn();
+            head_contents = document.getElementById('row_cols');
+            cols_id = head_contents.childElementCount + 1;
+            head_contents.innerHTML += `<th data-col_id="c${cols_id}"align="center" contenteditable="true">NEW</th>`;
+            $(".rows").append(`<td data-col_id="c${cols_id}" contenteditable="true"></td>`);
+            delbox_check_event();
+      }
+
+      function row_del(){
+            delete_del_btn();
+            d = $(".rows:last-child");
+            d.remove();
+            delbox_check_event();
+
+      }
+      function col_del(){
+            delete_del_btn();
+            head_contents = document.getElementById('row_cols');
+            head_contents.removeChild(head_contents.lastElementChild);
+            d = $(".rows td:last-child");
+            d.remove();
+            delbox_check_event();
+
+      }
+      function save(){
+          delete_del_btn();
+          name = document.getElementById("load_name").innerHTML.trim()
+          data_type = document.getElementById("load_name").getAttribute('data-type').trim()
+          html_contents = $('#excel_container').html();
+          start_num = document.getElementById("load_name").getAttribute("data-start_num");
+          end_num = document.getElementById("load_name").getAttribute("data-end_num");
+          // alert(html_contents);
+
+          $.ajax
+          ({
+                  url: "/save_partial_excel",
+                  type: "POST",
+                  data: JSON.stringify({'html': html_contents,'name':name, 'start_num': start_num, 'end_num': end_num,'data_type':data_type}),
+                  contentType: "application/json",
+
+                  success : function(result)
+                  {
+
+                      window.location = '/api';
+                  },
+                  error: function(request, status, error)
+                  {
+                        alert(error);
+
+                  }
+          });
+
+      }
+
+      function out(){
+          name = document.getElementById("load_name").innerHTML;
+          if (confirm('저장하지 않고 나가시겠습니까?')){
+                    $.ajax
+                    ({
+                          url: "/out_excel",
+                          type: "POST",
+                          data: JSON.stringify({'name': name}),
+                          contentType: "application/json",
+
+                          success : function(result)
+                          {
+                              window.location = '/api';
+                          },
+                          error: function(request, status, error)
+                          {
+                                alert(error);
+
+                          }
+                    });
+
+
+          }
+      }
+
+
+    function col_check_save(){
+          delete_del_btn();
+          elements = $('.column-selected').toArray();
+
+          cols = []
+          for(var i = 0; i < elements.length; i++) {
+              cols.push(elements[i].getAttribute('value'));
+
+          }
+
+          type = $('#load_name').attr('data-type').trim();
+          name = $('#load_name').text().trim();
+
+          $.ajax
+                ({
+                      url: "/make_view",
+                      type: "POST",
+                      data: JSON.stringify({'name': name,'type': type,'cols' : cols,}),
+                      contentType: "application/json",
+
+                      success : function(result)
+                      {
+                          window.location = '/api';
+                      },
+                      error: function(request, status, error)
+                      {
+                            alert(error);
+
+                      }
+                });
+
+
+    }
+
+
+
+    </script>
+  <script>
+
+      function load_partial_first(){
+
+          name = document.getElementById("load_name").innerHTML;
+          data_type = document.getElementById("load_name").getAttribute('data-type');
+          cnt = 20;
+
+          $.ajax
+                    ({
+                          url: "/load_big_excel",
+                          type: "POST",
+                          data: JSON.stringify({'name': name, 'count': cnt,'data_type':data_type}),
+                          contentType: "application/json",
+
+                          success : function(result)
+                          {
+
+
+                                 document.getElementById("excel_container").innerHTML = result['html'];
+                                 res_num  = cnt;
+                                 document.getElementById("load_name").setAttribute("data-end_num",res_num)
+                                 document.getElementById("load_name").setAttribute("data-total_len",result['total_len'])
+                                 if (data_type =='csv'){
+                                 make_check_buttons();
+
+
+                                 }
+
+
+                          },
+                          error: function(request, status, error)
+                          {
+                                alert(error);
+
+                          }
+                    });
+      }
+
+
+      function load_left_right(way){
+
+          name = document.getElementById("load_name").innerHTML.trim();
+          bf_start_num = parseInt(document.getElementById("load_name").getAttribute("data-start_num"));
+          bf_end_num = parseInt(document.getElementById("load_name").getAttribute("data-end_num"));
+          total_len = parseInt(document.getElementById("load_name").getAttribute("data-total_len"));
+          chunk_size = 20;
+
+          if (bf_start_num == 0 & way=='left')
+          {
+          }
+
+          else if (bf_end_num >= total_len & way=='right')
+          {
+          }
+
+          else
+          {
+                delete_del_btn();
+                name = document.getElementById("load_name").innerHTML.trim()
+                data_type = document.getElementById("load_name").getAttribute('data-type').trim()
+                html_contents = $('#excel_container').html();
+                start_num = document.getElementById("load_name").getAttribute("data-start_num");
+                end_num = document.getElementById("load_name").getAttribute("data-end_num");
+                // alert(html_contents);
+
+                $.ajax
+                ({
+                        url: "/save_partial_excel",
+                        type: "POST",
+                        async: false,
+                        data: JSON.stringify({'html': html_contents,'name':name, 'start_num': start_num, 'end_num': end_num,'data_type':data_type}),
+                        contentType: "application/json",
+                        success : function(result){},
+                        error: function(request, status, error)
+                        {
+                              alert(error);
+                        }
+                });
+
+                if (way == 'left'){
+                    if (bf_end_num == total_len){
+                        mods = af_end_num % chunk_size;
+                        bf_end_num = (20-mods) + total_len;
+
+                    }
+                    af_start_num = bf_start_num - chunk_size;
+                    af_end_num = bf_end_num - chunk_size;
+
+                }
+                else if(way =='right'){
+                    af_start_num = bf_start_num + chunk_size;
+                    af_end_num = bf_end_num + chunk_size
+                    if (af_end_num >= total_len){
+                        af_end_num = total_len
+                    }
+
+                }
+
+                $.ajax
+                    ({
+                          url: "/load_suc_excel",
+                          type: "POST",
+                          data: JSON.stringify({'name': name, 'start_num': af_start_num, 'end_num': af_end_num,'data_type':data_type}),
+                          contentType: "application/json",
+
+                          success : function(result)
+                          {
+                                document.getElementById("cell_contents").innerHTML = result;
+                                document.getElementById("load_name").setAttribute("data-start_num",af_start_num);
+                                document.getElementById("load_name").setAttribute("data-end_num",af_end_num);
+                                document.getElementById("del_box_on").checked = false;
+
+
+                          },
+                          error: function(request, status, error)
+                          {
+                                alert(error);
+
+                          }
+                    });
+          }
+
+
+      }
+
+
+  // check button load for cols_save
+  function make_check_buttons(){
+    temp_obj = document.getElementById('row_cols');
+
+    children = temp_obj.childNodes;
+
+    for (var i = 0; i < children.length; i++){
+        if( (i % 2 == 1) && i > 2){
+
+          children[i].innerHTML = children[i].innerHTML + `&nbsp; <input class="column-unselected" type="checkbox" value="${children[i].innerHTML}" onclick="if_check_cols_check_box(event)">`;
+        }
+    };
+
+  }
+  //
+  // check or unchecked event
+  function if_check_cols_check_box(ev){
+
+        if ($(ev.target).is(":checked") == true){
+            $(ev.target).attr('class',"column-selected");
+        }
+        else{
+            $(ev.target).attr('class',"column-unselected");
+        }
+
+  }
+
+
+  function add_del_btn(){
+
+    // row 삭제버튼 추가
+    var trows = document.getElementById('row_cols');
+    trows.innerHTML = '<th data-del="html_delete" width="25px" style="border:None;"></th>' + trows.innerHTML;
+
+    var rows = document.getElementsByClassName('rows');
+    row_len = rows.length; //multi object
+    for (let i = 0; i < row_len; i++) {
+        rows[i].innerHTML = '<button data-del="html_delete" class="select_row_delete" style="font-size: 8px;background-color: skyblue;"onclick="delete_row(event)">x</button>' + rows[i].innerHTML
+    }
+
+    var thds = document.getElementById('cell_heads');
+    thds.innerHTML = '<tr data-del="html_delete" id="select_col_delete_btns"></tr>' + thds.innerHTML
+
+
+    // cols 삭제버튼 추가
+    var col_delete_btns = document.getElementById('select_col_delete_btns');
+    col_len = document.getElementById('row_cols').childElementCount; // single object
+
+    for (let i = 0; i < col_len; i++) {
+        if (i > 1){
+          col_delete_btns.innerHTML = col_delete_btns.innerHTML + `<th data-col_id="c${(i)}"align="center" style="border:None"><button class="select_col_delete" style="font-size: 8px;background-color: skyblue;"onclick="delete_col(event)">x</button></th>`;
+        }
+
+        else{
+          col_delete_btns.innerHTML = col_delete_btns.innerHTML + '<th style="border:None"></th>';
+        }
+    }
+
+
+   }
+
+   function delete_del_btn(){
+
+     del_target = document.querySelectorAll('[data-del="html_delete"]');
+     del_num = del_target.length;
+     for (var i = 0; i < del_num; i++)
+     {
+         del_target[i].remove();
+     }
+   }
+
+   function delbox_check_event(){
+         data_type_obj = document.getElementById("del_box_on");
+
+         if (data_type_obj.checked){
+            add_del_btn();
+         }
+         else{
+            delete_del_btn();
+         }
+  }
+
+  function delete_col(ev){
+        col_id = $(ev.target).parent().attr('data-col_id');
+        del_target = document.querySelectorAll(`[data-col_id="${col_id}"]`);
+        del_num = del_target.length;
+        for (var i = 0; i < del_num; i++)
+        {
+            del_target[i].remove();
+         }
+
+
+  }
+  function delete_row(ev){
+        $(ev.target).parent().remove();
+  }
+
+  </script>
+
+<script id="window_load_excel_data">
+ window.addEventListener("load", function(event) {
+
+    load_partial_first();
+    data_type = document.getElementById("load_name").getAttribute('data-type').trim()
+    if (data_type == 'redis'){
+         document.getElementById("col check btn").setAttribute('style','display:None');
+    }
+
+
+  });
+
+ //border-top, border-right, border-bottom, border-left
+
+</script>
+</head>
+<body >
+<div style="margin:20px;" id="excel_name"><h1>{{ excel_data }}</h1><label><input type="checkbox" id="del_box_on" name="box_on" value="box_on" onclick="delbox_check_event()">delete mode</label></div>
+<div id="load_name" style="display:none;" data-type="{{ excel_type }}" data-end_num=0 data-start_num=0 data-total_len=0> {{ excel_data }}</div>
+
+<div></div>
+
+    <div id="excel_container">
+<!--    content -->
+
+
+    </div>
+  <div align="center">
+        <img src="{{ url_for('static', filename='left_arrow.png') }}" onclick="load_left_right('left')" style="cursor:pointer;">
+        <img src="{{ url_for('static', filename='right_arrow.png') }}" onclick="load_left_right('right')" style="cursor:pointer;">
+  </div>
+<div style="margin:20px;">
+<button class="btn btn-primary" onclick="row_add()">row_add</button> &nbsp;&nbsp;&nbsp;
+  <button class="btn btn-primary" onclick="row_del()">row_del</button> &nbsp;&nbsp;&nbsp;
+<button class="btn btn-primary"  onclick="col_add()">col_add</button> &nbsp;&nbsp;&nbsp;
+<button class="btn btn-primary"  onclick="col_del()">col_del</button> &nbsp;&nbsp;&nbsp;
+<button class="btn btn-primary"  onclick="save()">save</button>
+  <button id="col check btn" class="btn btn-primary"  onclick="col_check_save()">col_check_save</button>
+<button class="btn btn-primary"  onclick="out()">out</button>
+</div>
+
+
+
+</body>
+</html>

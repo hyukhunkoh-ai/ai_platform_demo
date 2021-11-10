@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+      <script id="before the page unload">
+<!--      function myfun(){-->
+<!--          var root_path = $(location).attr('protocol') + "//" + $(location).attr('host');-->
+<!--         $.ajax({-->
+<!--          url: root_path + "/test",-->
+<!--          type: "POST",-->
+<!--          success : function(result){-->
+
+
+<!--          },-->
+<!--          error: function(request, status, error){-->
+<!--          alert('ajax 통신 실패')-->
+<!--          alert(error);-->
+<!--          }-->
+<!--        });-->
+<!--    }-->
+<!--    window.onbeforeunload = function(){-->
+<!--        myfun();-->
+<!--    }-->
+<!--   function status_click(){-->
+<!--    setInterval(function() {-->
+<!--      alert("1초마다 한번씩 실행");-->
+<!--    }, 1000);-->
+<!--   }-->
+  </script>
+
+    <!--  <script>-->
+<!--     $(document).ready(function () { // 문서가 로딩 되었을 때 실행해라-->
+<!--        if($.cookie('access_token')){-->
+<!--        $("#logout-div").show();}-->
+<!--        else{-->
+<!--        $("#logout-div").hide();-->
+<!--        }-->
+
+<!--       $.ajax({-->
+<!--        url: '/api/v1/users',-->
+<!--        contentType: 'application/json',-->
+<!--        method: 'GET',-->
+<!--        beforeSend : function(xhr){-->
+<!--        xhr.setRequestHeader('Authorization','JWT ' + $.cookie('access_toekn'))-->
+<!--        }-->
+<!--      }).done(function (res)({-->
+<!--      $.("#content").text(res);-->
+<!--    }).error(function (res){-->
+<!--      window.location = '/login';-->
+<!--    });-->
+
+
+<!--  </script>-->
+
+</head>
+<body>
+
+</body>
+</html>
